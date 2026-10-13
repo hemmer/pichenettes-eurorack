@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstring>
 #include <type_traits>
 
@@ -45,6 +46,15 @@
 #include "beads/dsp/stmlib_compat.h"
 
 namespace beads {
+
+struct DelayBufferState {
+  int write_ptr;
+  int duration;
+  int tail_write_ptr;
+  int tail_xfade_duration;
+  int written_since_last_frozen;
+  bool frozen;
+};
 
 enum Resolution {
   RESOLUTION_8_BIT,
@@ -394,6 +404,83 @@ class DelayLine {
   inline bool frozen() const { return frozen_; }
   
   inline int duration() const { return duration_; }
+
+  inline int buffer_capacity() const { return max_delay; }
+
+  inline DelayBufferState buffer_state() const {
+    DelayBufferState state = {
+      write_ptr_, duration_, tail_write_ptr_, tail_xfade_duration_,
+      written_since_last_frozen_, frozen_
+    };
+    return state;
+  }
+
+  inline bool valid_buffer_state(const DelayBufferState& state) const {
+    return state.write_ptr >= 0 && state.write_ptr < max_delay &&
+        state.duration >= 0 && state.duration <= max_delay &&
+        state.tail_write_ptr >= 0 && state.tail_write_ptr <= freeze_tail_size &&
+        state.tail_xfade_duration >= 0 && state.tail_xfade_duration <= freeze_tail_size &&
+        state.written_since_last_frozen >= 0 &&
+        state.written_since_last_frozen < max_delay;
+  }
+
+  inline bool restore_buffer_state(const DelayBufferState& state) {
+    if (!valid_buffer_state(state)) {
+      return false;
+    }
+    write_ptr_ = state.write_ptr;
+    duration_ = state.duration;
+    tail_write_ptr_ = state.tail_write_ptr;
+    tail_xfade_duration_ = state.tail_xfade_duration;
+    written_since_last_frozen_ = state.written_since_last_frozen;
+    frozen_ = state.frozen;
+    return true;
+  }
+
+  inline int export_buffer(FloatFrame* out, int capacity) const {
+    if (!out || capacity <= 0) {
+      return 0;
+    }
+    const int count = duration_ < capacity ? duration_ : capacity;
+    for (int i = 0; i < count; ++i) {
+      int index = (write_ptr_ + duration_ - i) % max_delay;
+      if (index < 0) {
+        index += max_delay;
+      }
+      out[i] = Load(index);
+    }
+    return count;
+  }
+
+  inline bool import_buffer(const FloatFrame* in, int count) {
+    if (count < 0 || count > max_delay || (count && !in)) {
+      return false;
+    }
+    for (int i = 0; i < count; ++i) {
+      if (!std::isfinite(in[i].l) || !std::isfinite(in[i].r)) return false;
+    }
+    Reset(true);
+    Trim();
+    for (int i = 0; i < count; ++i) {
+      const FloatFrame sample = {
+          std::max(-1.0f, std::min(1.0f, in[i].l)),
+          std::max(-1.0f, std::min(1.0f, in[i].r))
+      };
+      Write(sample);
+    }
+    // DelayGranularPlayer subtracts a 514-frame safety margin from duration.
+    // Keep short imports usable by exposing that minimum, with the reset-zero
+    // samples preceding the imported audio in chronological order.
+    const int minimum_duration = max_delay < 515 ? max_delay : 515;
+    if (duration_ < minimum_duration) {
+      duration_ = minimum_duration;
+    }
+    tail_write_ptr_ = 0;
+    tail_xfade_duration_ = 0;
+    written_since_last_frozen_ = 0;
+    frozen_ = true;
+    return true;
+  }
 
   inline int remaining() const {
     return max_delay - written_since_last_frozen_;

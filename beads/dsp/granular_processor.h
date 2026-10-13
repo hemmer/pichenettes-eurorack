@@ -106,6 +106,32 @@ class GranularProcessor {
         ? mono_delay_line_.remaining()
         : stereo_delay_line_.remaining();
   }
+
+  inline DelayBufferState buffer_state(bool mono) const {
+    return mono ? mono_delay_line_.buffer_state() : stereo_delay_line_.buffer_state();
+  }
+
+  inline bool restore_buffer_state(bool mono, const DelayBufferState& state) {
+    return mono
+        ? mono_delay_line_.restore_buffer_state(state)
+        : stereo_delay_line_.restore_buffer_state(state);
+  }
+
+  inline int buffer_capacity(bool mono) const {
+    return mono ? mono_delay_line_.buffer_capacity() : stereo_delay_line_.buffer_capacity();
+  }
+
+  inline int export_buffer(bool mono, FloatFrame* out, int capacity) const {
+    return mono
+        ? mono_delay_line_.export_buffer(out, capacity)
+        : stereo_delay_line_.export_buffer(out, capacity);
+  }
+
+  inline bool import_buffer(bool mono, const FloatFrame* in, int count) {
+    return mono
+        ? mono_delay_line_.import_buffer(in, count)
+        : stereo_delay_line_.import_buffer(in, count);
+  }
   
   inline uint8_t* delay_buffer_raw_bytes(bool mono, size_t offset) {
     // Independently of the stereo/mono setting, we're writing in the same
@@ -182,11 +208,11 @@ class GranularProcessor {
       
       for (size_t channel = 0; channel < 2; ++channel) {
         for (size_t i = 0; i < size; ++i) {
-          upsampled[i] = *(&(in[i].l) + channel);
+          upsampled[i] = (channel ? in[i].r : in[i].l);
         }
         src_down_[channel].Process(upsampled, downsampled, size);
         for (size_t i = 0; i < d_size; ++i) {
-          *(&(d_in[i].l) + channel) = downsampled[i];
+          (channel ? d_in[i].r : d_in[i].l) = downsampled[i];
         }
       }
 
@@ -199,11 +225,11 @@ class GranularProcessor {
       
       for (size_t channel = 0; channel < 2; ++channel) {
         for (size_t i = 0; i < d_size; ++i) {
-          downsampled[i] = *(&(d_out[i].l) + channel);
+          downsampled[i] = (channel ? d_out[i].r : d_out[i].l);
         }
         src_up_[channel].Process(downsampled, upsampled, d_size);
         for (size_t i = 0; i < size; ++i) {
-          *(&(out[i].l) + channel) = upsampled[i];
+          (channel ? out[i].r : out[i].l) = upsampled[i];
         }
       }
     }

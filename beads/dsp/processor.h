@@ -74,6 +74,56 @@ class Processor {
   
   inline Media media() const { return media_; }
   inline bool mono() const { return mono_; }
+
+  inline DelayBufferState buffer_state() const {
+    switch (media_) {
+      case MEDIA_DIRTY_TAPE: return processor_dirty_tape_.buffer_state(mono_);
+      case MEDIA_CLEAN_TAPE: return processor_clean_tape_.buffer_state(mono_);
+      case MEDIA_VINTAGE_DIGITAL: return processor_vintage_digital_.buffer_state(mono_);
+      case MEDIA_DIGITAL:
+      default: return processor_digital_.buffer_state(mono_);
+    }
+  }
+
+  inline bool restore_buffer_state(const DelayBufferState& state) {
+    switch (media_) {
+      case MEDIA_DIRTY_TAPE: return processor_dirty_tape_.restore_buffer_state(mono_, state);
+      case MEDIA_CLEAN_TAPE: return processor_clean_tape_.restore_buffer_state(mono_, state);
+      case MEDIA_VINTAGE_DIGITAL: return processor_vintage_digital_.restore_buffer_state(mono_, state);
+      case MEDIA_DIGITAL:
+      default: return processor_digital_.restore_buffer_state(mono_, state);
+    }
+  }
+
+  inline int buffer_capacity() const {
+    switch (media_) {
+      case MEDIA_DIRTY_TAPE: return processor_dirty_tape_.buffer_capacity(mono_);
+      case MEDIA_CLEAN_TAPE: return processor_clean_tape_.buffer_capacity(mono_);
+      case MEDIA_VINTAGE_DIGITAL: return processor_vintage_digital_.buffer_capacity(mono_);
+      case MEDIA_DIGITAL:
+      default: return processor_digital_.buffer_capacity(mono_);
+    }
+  }
+
+  inline int export_buffer(FloatFrame* out, int capacity) const {
+    switch (media_) {
+      case MEDIA_DIRTY_TAPE: return processor_dirty_tape_.export_buffer(mono_, out, capacity);
+      case MEDIA_CLEAN_TAPE: return processor_clean_tape_.export_buffer(mono_, out, capacity);
+      case MEDIA_VINTAGE_DIGITAL: return processor_vintage_digital_.export_buffer(mono_, out, capacity);
+      case MEDIA_DIGITAL:
+      default: return processor_digital_.export_buffer(mono_, out, capacity);
+    }
+  }
+
+  inline bool import_buffer(const FloatFrame* in, int count) {
+    switch (media_) {
+      case MEDIA_DIRTY_TAPE: return processor_dirty_tape_.import_buffer(mono_, in, count);
+      case MEDIA_CLEAN_TAPE: return processor_clean_tape_.import_buffer(mono_, in, count);
+      case MEDIA_VINTAGE_DIGITAL: return processor_vintage_digital_.import_buffer(mono_, in, count);
+      case MEDIA_DIGITAL:
+      default: return processor_digital_.import_buffer(mono_, in, count);
+    }
+  }
   
   inline float sample_rate() const {
 #ifdef ENABLE_HARDWARE_24K
