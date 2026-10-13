@@ -53,12 +53,6 @@ class WavetableGranularPlayer : public GranularPlayer<WavetableGrain, 32> {
       float amplitude, pan;
       ComputeGrainAmplitudeAndPan(trigger, p, &amplitude, &pan);
       
-#ifdef TEST
-      if (!new_grain()->done()) {
-        printf("stealing, duration = %d\n", new_grain()->remaining_samples());
-      }
-#endif  // TEST
-
       new_grain()->Start(
           bank,
           bit_shift,
