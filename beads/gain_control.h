@@ -41,7 +41,7 @@ namespace beads {
 
 class GainControl {
  public:
-  GainControl() { }
+  GainControl() : auto_gain_(true), manual_gain_(0.0f) { }
   ~GainControl() { }
   
   enum State {

@@ -59,6 +59,7 @@ class Tap {
       return;
     }
     if (window_size == 1) {
+      if (gain == 0.0f) return;
       *out += gain * delay_line->template Read<INTERPOLATION_HERMITE>(delay);
       return;
     }
@@ -73,6 +74,8 @@ class Tap {
       phase_ += full_window_size;
     }
     
+    // Preserve head motion for later pitch changes, but avoid inaudible reads.
+    if (gain == 0.0f) return;
     delay = std::max(full_window_size + 1, delay + half_window_size);
     
     const float phase = static_cast<float>(phase_) / float(full_window_size);

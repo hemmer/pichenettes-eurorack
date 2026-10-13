@@ -140,7 +140,7 @@ class GranularProcessor {
   }
   
   inline void WasteCPUCycles(size_t size) {
-    Parameters p;
+    Parameters p{};
   
     p.time.base = 0.0f;
     p.time.attenuverter = 1.0f;
@@ -165,7 +165,7 @@ class GranularProcessor {
     out.r = 0.0f;
     
     for (size_t i = 0; i < size; ++i) {
-      TriggerGenerator::Output trigger;
+      TriggerGenerator::Output trigger{};
       trigger.trigger = i == 0;
       trigger.fractional_sample = 0.0f;
       
@@ -253,6 +253,7 @@ class GranularProcessor {
       DelayController::Output* out,
       size_t size) {
     for (size_t i = 0; i < size; i += ratio) {
+      out->gate = in[i].gate;
       for (size_t j = 0; j < DelayController::NUM_TAPS; ++j) {
         out->tap[j].delay = in[i].tap[j].delay / ratio;
         out->tap[j].gain = in[i].tap[j].gain;
@@ -268,6 +269,7 @@ class GranularProcessor {
     float inv_ratio = 1.0f / static_cast<float>(ratio);
     for (size_t i = 0; i < size / ratio; ++i) {
       out->regularity = in->regularity;
+      out->phase = in->phase;
 
       bool has_trigger = false;
       float fractional_sample = 0.0f;
