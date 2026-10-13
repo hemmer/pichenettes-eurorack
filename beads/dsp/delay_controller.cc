@@ -33,7 +33,7 @@
 #include "stmlib/dsp/dsp.h"
 #include "stmlib/dsp/parameter_interpolator.h"
 #include "stmlib/dsp/units.h"
-#include "stmlib/utils/random.h"
+#include "beads/dsp/random.h"
 
 namespace beads {
 

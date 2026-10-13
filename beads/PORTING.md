@@ -1,5 +1,9 @@
 # Beads porting notes
 
+This branch targets the Audible Instruments desktop port. Its scoped RNG uses
+C++17 thread-local storage; the desktop test makefile now selects C++17 explicitly.
+It is not a firmware image intended for flashing the hardware module.
+
 The imported Beads source is from Mutable Instruments' Eurorack repository at
 `f4cfa7697095a28d292bff758beb51deb49b5a86`. The small compatibility helpers
 in `dsp/stmlib_compat.h` are copied from stmlib revision
@@ -29,3 +33,19 @@ The same README identifies AVR code as GPL-3.0, STM32F code as MIT, and hardware
 as CC BY-SA 3.0. See the pinned upstream
 [README](https://github.com/pichenettes/eurorack/blob/f4cfa7697095a28d292bff758beb51deb49b5a86/README.md)
 and [Beads source tree](https://github.com/pichenettes/eurorack/tree/f4cfa7697095a28d292bff758beb51deb49b5a86/beads).
+
+The host gain stage in `src/Beads/GainControl.hpp` adapts the algorithm in
+`beads/gain_control.cc` (same Beads import revision) to normalized
+`beads::FloatFrame` buffers. Codec integer scaling and HAL access are outside
+the adapter; its caller supplies already normalized samples and the channel
+normalization flags. The gain, AGC timing, interpolation, VU, and soft-clipping
+behavior follow the upstream implementation.
+
+Beads random calls now use `beads/dsp/random.h`, a local provider matching the
+stmlib LCG (`state = state * 1664525 + 1013904223`) and its `GetWord`,
+`GetSample`, `GetFloat`, and `Seed` sequence exactly. `ScopedRandomState` binds
+the provider to a caller-owned engine state for the duration of an init or
+render scope, then restores any prior binding. Direct core calls outside a
+binding retain a per-thread fallback initialized to `0x21`. This changes state
+ownership and removes Beads' writes to shared `stmlib::Random`; it does not
+change the generator algorithm.

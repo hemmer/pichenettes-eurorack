@@ -26,10 +26,10 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(BUILD_DIR)%.o: %.cc
-	g++ -c -DTEST -Os -g -Wall -Werror -Wno-unused-local-typedef -I. $< -o $@
+	g++ -std=c++17 -c -DTEST -Os -g -Wall -Werror -Wno-unused-local-typedef -I. $< -o $@
 
 $(BUILD_DIR)%.d: %.cc
-	g++ -MM -DTEST -I. $< -MF $@ -MT $(@:.d=.o)
+	g++ -std=c++17 -MM -DTEST -I. $< -MF $@ -MT $(@:.d=.o)
 
 beads_test:  $(OBJS)
 	g++ -o $(TARGET) $(OBJS)

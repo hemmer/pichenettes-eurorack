@@ -30,7 +30,7 @@
 #define BEADS_DSP_FX_WOW_FLUTTER_H_
 
 #include "stmlib/stmlib.h"
-#include "stmlib/utils/random.h"
+#include "beads/dsp/random.h"
 #include "stmlib/dsp/delay_line.h"
 #include "stmlib/dsp/parameter_interpolator.h"
 
@@ -77,7 +77,7 @@ class WowAndFlutter {
     
     if (random_modulation_.phase() >= 0.25f && previous_phase < 0.25f) {
       random_frequency_ = one_hertz_ * \
-          (0.05f + stmlib::Random::GetFloat() * 0.2f);
+          (0.05f + Random::GetFloat() * 0.2f);
     }
     
     const float fm = 0.5f + 1.5f * random_modulation * random_modulation;

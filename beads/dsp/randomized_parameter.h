@@ -32,7 +32,7 @@
 #include "stmlib/stmlib.h"
 
 #include "stmlib/dsp/units.h"
-#include "stmlib/utils/random.h"
+#include "beads/dsp/random.h"
 
 #include "beads/resources.h"
 
@@ -41,17 +41,17 @@
 namespace beads {
 
 inline float CenteredUniform() {
-  return 2.0f * stmlib::Random::GetFloat() - 1.0f;
+  return 2.0f * Random::GetFloat() - 1.0f;
 }
 
 inline float PseudoGaussian() {
-  const float u = stmlib::Random::GetFloat();
+  const float u = Random::GetFloat();
   return u * (u * (4.0f * u - 6.0f) + 4.0f) - 1.0f;
 }
 
 inline float BoundedRandomFloat(float spread) {
-  const float u = stmlib::Random::GetFloat();
-  const float v = stmlib::Random::GetFloat();
+  const float u = Random::GetFloat();
+  const float v = Random::GetFloat();
   return 0.5f + (u - 0.5f) * std::min(spread * v, 1.0f);
 }
 
@@ -119,11 +119,11 @@ struct RandomizedParameter {
         const float blend = attenuverter > 0.0f
             ? attenuverter
             : std::min(1.0f,
-              attenuverter * stmlib::Random::GetFloat() * -3.0f);
+              attenuverter * Random::GetFloat() * -3.0f);
         
         const float random_value = !clamp
             ? CenteredUniform() * range
-            : stmlib::Random::GetFloat() * range - result;
+            : Random::GetFloat() * range - result;
         result += random_value * blend;
       }
     } else {

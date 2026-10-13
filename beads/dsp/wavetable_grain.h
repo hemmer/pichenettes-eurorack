@@ -32,7 +32,7 @@
 #include "stmlib/stmlib.h"
 
 #include "stmlib/dsp/dsp.h"
-#include "stmlib/utils/random.h"
+#include "beads/dsp/random.h"
 
 #include "beads/dsp/grain.h"
 
