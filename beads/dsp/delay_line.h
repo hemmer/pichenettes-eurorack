@@ -40,6 +40,8 @@
 #include "beads/dsp/frame.h"
 #include "beads/dsp/mu_law.h"
 
+#include "beads/dsp/stmlib_compat.h"
+
 namespace beads {
 
 enum Resolution {
@@ -311,7 +313,7 @@ class DelayLine {
       if (tail_write_ptr_) {
         const int tail_position = tail_xfade_duration_ - tail_write_ptr_;
         const float t = float(tail_write_ptr_) / float(tail_xfade_duration_);
-        const float gain = stmlib::SmoothStep(t);
+        const float gain = beads::SmoothStep(t);
         in.l += (freeze_tail_[tail_position].l - in.l) * gain;
         in.r += (freeze_tail_[tail_position].r - in.r) * gain;
 

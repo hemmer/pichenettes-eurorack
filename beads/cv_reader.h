@@ -37,6 +37,8 @@
 #include "beads/drivers/pots_adc.h"
 #include "beads/settings.h"
 
+#include "beads/dsp/stmlib_compat.h"
+
 namespace beads {
 
 class CvChannel {
@@ -126,7 +128,7 @@ class PotChannel {
   
       float a = intervals[detune_integral];
       float b = intervals[detune_integral + 1];
-      v = stmlib::Crossfade(a, b, stmlib::SmoothStep(detune_fractional)) * sign;
+      v = stmlib::Crossfade(a, b, beads::SmoothStep(detune_fractional)) * sign;
     }
     ONE_POLE(lp_, v, lp_coefficient_);
     hysteresis_filter_.Process(lp_);

@@ -36,6 +36,8 @@
 
 #include "beads/resources.h"
 
+#include "beads/dsp/stmlib_compat.h"
+
 namespace beads {
 
 inline float CenteredUniform() {
@@ -75,7 +77,7 @@ class RandomWalkModulation {
       from_ = to_;
       to_ = CenteredUniform();
     }
-    return from_ + (to_ - from_) * stmlib::SmoothStep(phase_);
+    return from_ + (to_ - from_) * beads::SmoothStep(phase_);
   }
   
  private:

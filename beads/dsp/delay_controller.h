@@ -38,6 +38,8 @@
 #include "beads/dsp/trigger_generator.h"
 #include "beads/dsp/randomized_parameter.h"
 
+#include "beads/dsp/stmlib_compat.h"
+
 namespace beads {
 
 struct DelayTap {
@@ -218,7 +220,7 @@ class DelayController {
   
   PlayHead play_head_[NUM_HEADS];
   PlayHead slave_play_head_[NUM_HEADS];
-  stmlib::HysteresisQuantizer2 numerator_quantizer_[NUM_HEADS];
+  beads::HysteresisQuantizer2 numerator_quantizer_[NUM_HEADS];
 
   TapEnvelope tap_envelope_[NUM_TAPS];
   

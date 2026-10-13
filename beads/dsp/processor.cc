@@ -32,6 +32,8 @@
 
 #include "beads/dsp/mu_law.h"
 
+#include "beads/dsp/stmlib_compat.h"
+
 namespace beads {
 
 const float kDelayModeTransitionTime = 1.5f;  // seconds

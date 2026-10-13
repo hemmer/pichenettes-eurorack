@@ -37,6 +37,8 @@
 #include "beads/dsp/delay_line.h"
 #include "beads/dsp/grain.h"
 
+#include "beads/dsp/stmlib_compat.h"
+
 namespace beads {
 
 enum HeadCrossingPolicy {
@@ -208,7 +210,7 @@ class DelayGrain : public Grain {
       }
     } else {
       if (fade_out) {
-        sample *= stmlib::SmoothStep(fade_ramp);
+        sample *= beads::SmoothStep(fade_ramp);
       }
     }
     

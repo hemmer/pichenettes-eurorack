@@ -33,6 +33,8 @@
 
 #include <algorithm>
 
+#include "beads/dsp/stmlib_compat.h"
+
 namespace beads {
 
 class GrainEnvelope {
@@ -119,7 +121,7 @@ class GrainEnvelope {
       const bool attack = stage_ == STAGE_ATTACK;
       const float t = attack ? phase_ : 1.0f - phase_;
       const float base = attack ? t : (t * t) * (t * t);
-      value = base + (stmlib::SmoothStep(t) - base) * smoothness_;
+      value = base + (beads::SmoothStep(t) - base) * smoothness_;
     }
 
     phase_ += phase_increment_[stage_];

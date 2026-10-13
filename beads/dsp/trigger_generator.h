@@ -34,6 +34,8 @@
 
 #include <algorithm>
 
+#include "beads/dsp/stmlib_compat.h"
+
 namespace beads {
 
 enum SeedButtonState {
@@ -89,7 +91,7 @@ class TriggerGenerator {
   int division_;
   bool audio_rate_;
   
-  stmlib::HysteresisQuantizer2 divider_quantizer_;
+  beads::HysteresisQuantizer2 divider_quantizer_;
 
   float max_pulse_frequency_;
   int audio_rate_interval_;

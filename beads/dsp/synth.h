@@ -38,6 +38,8 @@
 #include "beads/dsp/wavetable_voice.h"
 #include "beads/dsp/fx/reverb.h"
 
+#include "beads/dsp/stmlib_compat.h"
+
 namespace beads {
 
 const size_t kNumBanks = 12;
@@ -81,7 +83,7 @@ class Synth {
   WavetableGranularPlayer wavetable_granular_player_;
   WavetableVoice wavetable_voice_;
   
-  stmlib::HysteresisQuantizer2 bank_quantizer_;
+  beads::HysteresisQuantizer2 bank_quantizer_;
   
   DISALLOW_COPY_AND_ASSIGN(Synth);
 };
