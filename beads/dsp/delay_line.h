@@ -31,6 +31,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstring>
+#include <type_traits>
 
 #include "stmlib/stmlib.h"
 
@@ -85,43 +87,60 @@ struct Item<RESOLUTION_16_BIT, 2> {
   int16_t r;
 };
 
+// Explicit little-endian packing avoids compiler-specific signed bitfield
+// layout (notably GCC's Windows MS bitfield ABI). Both formats occupy 3 bytes.
+inline uint16_t Encode12(int32_t sample) {
+  const int32_t clipped = stmlib::Clip16(sample);
+  const int32_t quantized = (clipped + 32768) / 16 - 2048;
+  return static_cast<uint16_t>(quantized) & 0x0fff;
+}
+
+inline float Decode12(uint16_t value) {
+  const int32_t signed_value = value < 2048 ? value : int32_t(value) - 4096;
+  return static_cast<float>(signed_value) / 2048.0f;
+}
+
 template<>
 struct Item<RESOLUTION_12_BIT, 2> {
   void Store(int i, FloatFrame s) {
-    l = stmlib::Clip16(static_cast<int32_t>(s.l * 32768.0f)) >> 4;
-    r = stmlib::Clip16(static_cast<int32_t>(s.r * 32768.0f)) >> 4;
+    const uint16_t l = Encode12(static_cast<int32_t>(s.l * 32768.0f));
+    const uint16_t r = Encode12(static_cast<int32_t>(s.r * 32768.0f));
+    data[0] = l & 0xff;
+    data[1] = (l >> 8) | ((r & 0x0f) << 4);
+    data[2] = r >> 4;
   }
   inline FloatFrame value(int i) const {
-    FloatFrame result;
-    result.l = static_cast<float>(l) / 2048.0f;
-    result.r = static_cast<float>(r) / 2048.0f;
-    return result;
+    return {Decode12(uint16_t(data[0]) | ((uint16_t(data[1]) & 0x0f) << 8)),
+            Decode12((uint16_t(data[1]) >> 4) | (uint16_t(data[2]) << 4))};
   }
   enum { bundle_size = 1 };
-  int16_t l : 12;
-  int16_t r : 12;
-} __attribute__((packed));
+  uint8_t data[3];
+};
 
 template<>
 struct Item<RESOLUTION_12_BIT, 1> {
   void Store(int i, FloatFrame s) {
-    int16_t lr = \
-        stmlib::Clip16(static_cast<int32_t>((s.l + s.r) * 16384.0f)) >> 4;
+    const uint16_t value = Encode12(static_cast<int32_t>((s.l + s.r) * 16384.0f));
     if (i) {
-      odd = lr;
+      data[0] = value & 0xff;
+      data[1] = (data[1] & 0xf0) | (value >> 8);
     } else {
-      even = lr;
+      data[1] = (data[1] & 0x0f) | ((value & 0x0f) << 4);
+      data[2] = value >> 4;
     }
   }
   inline FloatFrame value(int i) const {
-    FloatFrame result;
-    result.l = result.r = static_cast<float>(i ? odd : even) / 2048.0f;
-    return result;
+    const float sample = Decode12(i
+        ? uint16_t(data[0]) | ((uint16_t(data[1]) & 0x0f) << 8)
+        : (uint16_t(data[1]) >> 4) | (uint16_t(data[2]) << 4));
+    return {sample, sample};
   }
   enum { bundle_size = 2 };
-  int16_t odd : 12;
-  int16_t even : 12;
-} __attribute__((packed));
+  uint8_t data[3];
+};
+
+static_assert(sizeof(Item<RESOLUTION_12_BIT, 1>) == 3, "12-bit mono storage size");
+static_assert(sizeof(Item<RESOLUTION_12_BIT, 2>) == 3, "12-bit stereo storage size");
 
 template<>
 struct Item<RESOLUTION_8_BIT, 1> {
@@ -215,10 +234,13 @@ class DelayLine {
       assert(sizeof(ItemType) == 1);
     }*/
 
-    freeze_tail_ = static_cast<FloatFrame*>(static_cast<void*>(
-        &buffers[num_banks - 1][bank_size - freeze_tail_size_in_bytes()]));
+    static_assert(std::is_trivially_copyable<ItemType>::value,
+                  "Delay storage requires trivially copyable items");
+    static_assert(std::is_trivially_copyable<FloatFrame>::value,
+                  "Freeze storage requires trivially copyable frames");
+    freeze_tail_ = &buffers[num_banks - 1][bank_size - freeze_tail_size_in_bytes()];
     for (size_t i = 0; i < num_banks; ++i) {
-      items_[i] = static_cast<ItemType*>(static_cast<void*>(buffers[i]));
+      items_[i] = buffers[i];
     }
     
     Reset();
@@ -237,9 +259,7 @@ class DelayLine {
   }
   
   inline uint8_t* raw_bytes(size_t offset) {
-    return static_cast<uint8_t*>(
-        static_cast<void*>(
-            items_[offset / bank_size])) + (offset % bank_size);
+    return items_[offset / bank_size] + (offset % bank_size);
   }
   
   inline int* mutable_write_ptr() { return &write_ptr_; }
@@ -256,13 +276,17 @@ class DelayLine {
       FloatFrame zero;
       zero.l = zero.r = 0.0f;
 
-      ItemType zero_item;
+      ItemType zero_item{};
       zero_item.Store(0, zero);
       zero_item.Store(1, zero);
       for (size_t bank = 0; bank < num_banks; ++bank) {
-        std::fill(&items_[bank][0], &items_[bank][items_per_bank()], zero_item);
+        for (size_t i = 0; i < items_per_bank(); ++i) {
+          std::memcpy(items_[bank] + i * sizeof(ItemType), &zero_item, sizeof(zero_item));
+        }
       }
-      std::fill(&freeze_tail_[0], &freeze_tail_[freeze_tail_size], zero);
+      for (size_t i = 0; i < freeze_tail_size; ++i) {
+        std::memcpy(freeze_tail_ + i * sizeof(FloatFrame), &zero, sizeof(zero));
+      }
     }
   }
   
@@ -301,8 +325,7 @@ class DelayLine {
         tail_write_ptr_ = 0;
       }
       if (tail_write_ptr_ < freeze_tail_size) {
-        freeze_tail_[tail_write_ptr_].l = in.l;
-        freeze_tail_[tail_write_ptr_].r = in.r;
+        std::memcpy(freeze_tail_ + size_t(tail_write_ptr_) * sizeof(in), &in, sizeof(in));
         ++tail_write_ptr_;
       }
       written_since_last_frozen_ = 0;
@@ -314,8 +337,9 @@ class DelayLine {
         const int tail_position = tail_xfade_duration_ - tail_write_ptr_;
         const float t = float(tail_write_ptr_) / float(tail_xfade_duration_);
         const float gain = beads::SmoothStep(t);
-        in.l += (freeze_tail_[tail_position].l - in.l) * gain;
-        in.r += (freeze_tail_[tail_position].r - in.r) * gain;
+        const FloatFrame tail = freeze_sample(tail_position);
+        in.l += (tail.l - in.l) * gain;
+        in.r += (tail.r - in.r) * gain;
 
         --tail_write_ptr_;
       }
@@ -377,8 +401,12 @@ class DelayLine {
   
  private:
   inline void Store(int i, FloatFrame value) {
-    mutable_item(i / ItemType::bundle_size)->Store(
-        i % ItemType::bundle_size, value);
+    const int index = i / ItemType::bundle_size;
+    ItemType stored = item(index);
+    stored.Store(i % ItemType::bundle_size, value);
+    const size_t bank = num_banks == 1 ? 0 : size_t(index) / items_per_bank();
+    const size_t offset = num_banks == 1 ? size_t(index) : size_t(index) % items_per_bank();
+    std::memcpy(items_[bank] + offset * sizeof(ItemType), &stored, sizeof(stored));
   }
   
   inline FloatFrame Load(int i) const {
@@ -395,10 +423,10 @@ class DelayLine {
         size_t bank = size_t(i) / items_per_bank();
         if ((offset + 3) < items_per_bank()) {
           // Optimization found! All items belong in the same bank!
-          x[0] = items_[bank][offset].value(0);
-          x[1] = items_[bank][offset + 1].value(0);
-          x[2] = items_[bank][offset + 2].value(0);
-          x[3] = items_[bank][offset + 3].value(0);
+          x[0] = item_at(bank, offset).value(0);
+          x[1] = item_at(bank, offset + 1).value(0);
+          x[2] = item_at(bank, offset + 2).value(0);
+          x[3] = item_at(bank, offset + 3).value(0);
           return;
         }
       } else if (ItemType::bundle_size == 2) {
@@ -409,15 +437,15 @@ class DelayLine {
         if ((offset + 2) < items_per_bank()) {
           // Optimization found! All items belong in the same bank!
           if ((i % 2) == 0) {
-            x[0] = items_[bank][offset].value(0);
-            x[1] = items_[bank][offset].value(1);
-            x[2] = items_[bank][offset + 1].value(0);
-            x[3] = items_[bank][offset + 1].value(1);
+            x[0] = item_at(bank, offset).value(0);
+            x[1] = item_at(bank, offset).value(1);
+            x[2] = item_at(bank, offset + 1).value(0);
+            x[3] = item_at(bank, offset + 1).value(1);
           } else {
-            x[0] = items_[bank][offset].value(1);
-            x[1] = items_[bank][offset + 1].value(0);
-            x[2] = items_[bank][offset + 1].value(1);
-            x[3] = items_[bank][offset + 2].value(0);
+            x[0] = item_at(bank, offset).value(1);
+            x[1] = item_at(bank, offset + 1).value(0);
+            x[2] = item_at(bank, offset + 1).value(1);
+            x[3] = item_at(bank, offset + 2).value(0);
           }
           return;
         }
@@ -431,24 +459,29 @@ class DelayLine {
     x[3] = Load(i + 3);
   }
    
-  // Non-const flavor write access.
-  inline ItemType* mutable_item(int i) {
-    return const_cast<ItemType*>(&item(i));
+  // The banks are shared by several media formats. Keep them as byte arrays
+  // and copy to live objects rather than aliasing storage with incompatible types.
+  inline ItemType item_at(size_t bank, size_t offset) const {
+    ItemType result{};
+    std::memcpy(&result, items_[bank] + offset * sizeof(ItemType), sizeof(result));
+    return result;
   }
-  
-  inline const ItemType& item(int i) const {
-    if (num_banks == 1) {
-      return items_[0][i];
-    } else {
-      size_t offset = size_t(i) % items_per_bank();
-      size_t bank = size_t(i) / items_per_bank();
-      return items_[bank][offset];
-    }
+
+  inline ItemType item(int i) const {
+    return num_banks == 1
+        ? item_at(0, size_t(i))
+        : item_at(size_t(i) / items_per_bank(), size_t(i) % items_per_bank());
   }
-  
-  ItemType* items_[num_banks];
-  FloatFrame* freeze_tail_;
-  
+
+  inline FloatFrame freeze_sample(int i) const {
+    FloatFrame result{};
+    std::memcpy(&result, freeze_tail_ + size_t(i) * sizeof(result), sizeof(result));
+    return result;
+  }
+
+  uint8_t* items_[num_banks];
+  uint8_t* freeze_tail_;
+
   int write_ptr_;
   int tail_write_ptr_;
   int tail_xfade_duration_;

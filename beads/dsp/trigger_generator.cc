@@ -29,6 +29,7 @@
 #include "beads/dsp/trigger_generator.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "stmlib/dsp/dsp.h"
 #include "stmlib/dsp/units.h"
@@ -203,7 +204,10 @@ void TriggerGenerator::RenderDivider(
       pulse_count_ = (pulse_count_ + 1) % 48;
       elapsed_since_last_pulse_ = 0;
     }
-    ++elapsed_since_last_pulse_;
+    // The next edge multiplies this interval by four; preserve that headroom.
+    if (elapsed_since_last_pulse_ < std::numeric_limits<int>::max() / 4) {
+      ++elapsed_since_last_pulse_;
+    }
     
     if (audio_rate_) {
       float t = 0.0f;
@@ -296,7 +300,9 @@ void TriggerGenerator::Render(
           frequency_ = 1.0f / float(elapsed_since_last_pulse_);
           elapsed_since_last_pulse_ = 0;
         }
-        ++elapsed_since_last_pulse_;
+        if (elapsed_since_last_pulse_ < std::numeric_limits<int>::max() / 4) {
+          ++elapsed_since_last_pulse_;
+        }
         
         if (phase_ >= 1.0f) {
           phase_ = 1.0f;
