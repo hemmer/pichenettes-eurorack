@@ -123,7 +123,7 @@ class GranularPlayer {
 
     const float total_spread = ComputeSpread(trigger, p);
     const float pan_spread = 0.5f * num_active_grains * total_spread;
-    *pan = BoundedRandomFloat(pan_spread);
+    *pan = BoundedRandomFloat(p.time.random_source(), pan_spread);
   }
   
   inline T* new_grain() { return grain_priority_list_[0]; }

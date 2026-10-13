@@ -41,11 +41,13 @@ the adapter; its caller supplies already normalized samples and the channel
 normalization flags. The gain, AGC timing, interpolation, VU, and soft-clipping
 behavior follow the upstream implementation.
 
-Beads random calls now use `beads/dsp/random.h`, a local provider matching the
+Beads random calls use `beads/dsp/random.h`, an instance provider matching the
 stmlib LCG (`state = state * 1664525 + 1013904223`) and its `GetWord`,
-`GetSample`, `GetFloat`, and `Seed` sequence exactly. `ScopedRandomState` binds
-the provider to a caller-owned engine state for the duration of an init or
-render scope, then restores any prior binding. Direct core calls outside a
-binding retain a per-thread fallback initialized to `0x21`. This changes state
-ownership and removes Beads' writes to shared `stmlib::Random`; it does not
-change the generator algorithm.
+`GetSample`, `GetFloat`, and `Seed` sequence exactly. `BeadsEngine` owns one
+generator and passes it to `Processor::Init` and `Synth::Init`; both engines,
+their trigger generators, and processor wow/flutter share that generator.
+Top-level render calls bind parameter copies to the same source. Standalone
+`Processor`, `Synth`, `TriggerGenerator`, `WowAndFlutter`, and parameter values
+use their own `0x21` fallback generator unless given an explicit source. There
+is no TLS, global state, lock, or registry in the Beads provider, and Beads
+never writes `stmlib::Random`. The generator and draw order remain unchanged.

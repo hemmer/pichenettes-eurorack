@@ -35,6 +35,7 @@
 #include "stmlib/dsp/parameter_interpolator.h"
 
 #include "beads/dsp/frame.h"
+#include "beads/dsp/random.h"
 #include "beads/dsp/sine_oscillator.h"
 
 namespace beads {
@@ -44,7 +45,8 @@ class WowAndFlutter {
   WowAndFlutter() { }
   ~WowAndFlutter() { }
   
-  void Init(float sample_rate) {
+  void Init(float sample_rate, Random* random = NULL) {
+    random_ = random ? random : &fallback_random_;
     for (size_t i = 0; i < 2; ++i) {
       delay_line_[i].Init();
     }
@@ -77,7 +79,7 @@ class WowAndFlutter {
     
     if (random_modulation_.phase() >= 0.25f && previous_phase < 0.25f) {
       random_frequency_ = one_hertz_ * \
-          (0.05f + Random::GetFloat() * 0.2f);
+          (0.05f + random_->GetFloat() * 0.2f);
     }
     
     const float fm = 0.5f + 1.5f * random_modulation * random_modulation;
@@ -107,6 +109,8 @@ class WowAndFlutter {
   float lp_;
   float random_frequency_;
   FloatFrame lp_state_;
+  Random fallback_random_;
+  Random* random_ = &fallback_random_;
   
   SineOscillator random_modulation_;
   SineOscillator wow_;

@@ -43,7 +43,7 @@ const float kMaxGrainFrequency = 130.81278f;  // Hz
 const float kDividerResetInterval = 4.0f;  // s
 const float kAudioRateInterval = 1 / 48.0f;  // Hz
 
-void TriggerGenerator::Init(float sample_rate) {
+void TriggerGenerator::InitInternal(float sample_rate) {
   one_hertz_ = 1.0f / sample_rate;
 
   max_pulse_frequency_ = kMaxGrainFrequency / sample_rate;
@@ -107,7 +107,7 @@ void TriggerGenerator::RenderPulseTrain(
     
     if (reset) {
       if (randomize) {
-        ratio_ = -1.0f / LogOneMinusX(0.1f + 0.9f * Random::GetFloat());
+        ratio_ = -1.0f / LogOneMinusX(0.1f + 0.9f * random_->GetFloat());
       }
     }
     
@@ -165,7 +165,7 @@ void TriggerGenerator::RenderDivider(
       audio_rate_ = (elapsed_since_last_pulse_ < threshold) && \
           (probability >= 1.0f);
 
-      accept_pulse_ = Random::GetFloat() < probability
+      accept_pulse_ = random_->GetFloat() < probability
           && (pulse_count_ % division) == 0;
       
       if (accept_pulse_) {
